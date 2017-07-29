@@ -20,23 +20,24 @@ def pullBandit(bandit):
 #These two lines established the feed-forward part of the network.  This does
 #the actual choosing.
 weights = tf.Variable(tf.ones([num_bandits]))
-chosen_action = tf.argmax(weights,0)
+chosen_action = tf.argmax(weights, 0)
 
 #The next six lines establish the training proceedure.  We feed the reward and
 #chosen action into the network
 #to compute the loss, and use it to update the network.
-reward_holder = tf.placeholder(shape=[1],dtype=tf.float32)
-action_holder = tf.placeholder(shape=[1],dtype=tf.int32)
+reward_holder = tf.placeholder(shape = [1], dtype = tf.float32)
+action_holder = tf.placeholder(shape = [1], dtype = tf.int32) #index of slot machine to choose
 responsible_weight = tf.slice(weights,action_holder,[1])
 loss = -(tf.log(responsible_weight) * reward_holder)
-optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.001)
+optimizer = tf.train.GradientDescentOptimizer(learning_rate = 0.001)
 update = optimizer.minimize(loss)
 
 total_episodes = 2000 #Set total number of episodes to train agent on.
 total_reward = np.zeros(num_bandits) #Set scoreboard for bandits to 0.
-choices = np.zeros(num_bandits)
+choices = np.zeros(num_bandits) #How many times each bandit was chosen
 e = 0.1 #Set the chance of taking a random action.
-init = tf.initialize_all_variables()
+#init = tf.initialize_all_variables() #DEPRECATED
+init = tf.global_variables_initializer()
 
 # Launch the tensorflow graph
 with tf.Session() as sess:
