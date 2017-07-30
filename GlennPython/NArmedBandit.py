@@ -43,7 +43,6 @@ init = tf.global_variables_initializer()
 with tf.Session() as sess:
 	sess.run(init)
 	for i in range(total_episodes):
-		
 		#Choose either a random action or one from our network.
 		if np.random.rand(1) < e:
 			action = np.random.randint(num_bandits) #Choose random action
@@ -53,14 +52,13 @@ with tf.Session() as sess:
 		reward = pullBandit(bandits[action]) #Get our reward from picking one of the bandits.
 		
 		#Update the network.
-		_, old_weight, adjusted_weights = sess.run([update, responsible_weight,weights], feed_dict = { reward_holder: [reward], action_holder: [action] })
+		_, old_responsible_weight, adjusted_weights = sess.run([update, responsible_weight,weights], feed_dict = { reward_holder: [reward], action_holder: [action] })
 		#print("resp = ", old_weight, "ww = ", adjusted_weights, "choice = ", action)
 		#Update our running tally of scores.
 		total_reward[action] += reward
 		choices[action] += 1
 		if i % 100 == 0:
 			print ("Running reward for the " + str(num_bandits) + " bandits: " + str(total_reward) + str(choices))
-		i += 1
 print ("The agent thinks bandit " + str(np.argmax(adjusted_weights) + 1) + " is the most promising....")
 if np.argmax(adjusted_weights) == np.argmax(-np.array(bandits)):
 	print ("...and it was right!")
