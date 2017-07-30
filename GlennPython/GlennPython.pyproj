@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>2da8cd0d-112f-4537-97fd-6394e3711976</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>TensorFlowPlayground.py</StartupFile>
+    <StartupFile>LinearRegressionTfLearn.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,8 +23,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="FrozenLake.py" />
+    <Compile Include="LinearRegressionTfLearn.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="NArmedBandit.py" />
     <Compile Include="TensorFlowPlayground.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ToyLinearRegression.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
