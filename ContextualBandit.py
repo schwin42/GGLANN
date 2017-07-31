@@ -4,6 +4,7 @@ import numpy as np
 
 class ContextualBandit():
 	def __init__(self):
+		something = otherthing
 		self.state = 0
 		#List out our bandits. Currently, arms 4, 2, and 1 (respectively) are the most optimal)
 		self.bandits = np.array([[0.2, 0, 0, -5], [0.1, -5, 1, -.25], [-5, 5, 5, 5]])
