@@ -50,8 +50,8 @@ class Agent():
 		self.reward_holder = tf.placeholder(shape = [None], dtype = tf.float32) #Holds time-indexed episode of discounted rewards
 		self.action_holder = tf.placeholder(shape = [None], dtype = tf.int32) #Holds time-indexed episode of actions
 		self.indexes = tf.range(0, 
-			tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder
-		#print("indexes: ", self.indexes)
+			tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder #Within a flattened m x K dimensional matrix, the index responsible for each action taken
+		print("indexes: ", self.indexes)
 		self.responsible_outputs = tf.gather(tf.reshape(self.output, [-1]), self.indexes) #Outputs for all actions in the episode
 		self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs) * self.reward_holder)
 		
