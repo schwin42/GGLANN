@@ -4,7 +4,6 @@ import numpy as np
 
 class ContextualBandit():
 	def __init__(self):
-		something = otherthing
 		self.state = 0
 		#List out our bandits. Currently, arms 4, 2, and 1 (respectively) are the most optimal)
 		self.bandits = np.array([[0.2, 0, 0, -5], [0.1, -5, 1, -.25], [-5, 5, 5, 5]])
@@ -27,15 +26,21 @@ class ContextualBandit():
 			return -1
 
 class Agent():
-	def __init__(self, lr, s_size, a_size):
+	def __init__(self, lr, s_size, a_size): #learning rate, number of bandits, number of arms per bandit
 		#These lines established the feed-forward part of the network.
 		#The agent takes a state and produces an action.
-		self.state_in = tf.placeholder(shape = [1], dtype = tf.int32) #Environment state input
-		state_in_OH = slim.one_hot_encoding(self.state_in, s_size)
-		output = slim.fully_connected(state_in_OH, a_size, #\ #Is backslash typo??
+		self.state_in = tf.placeholder(shape = [1], dtype = tf.int32) #Environment state input. In this case, the active bandit
+		self.state_in_OH = slim.one_hot_encoding(self.state_in, s_size)
+		print(self.state_in, "OH: ", self.state_in_OH)
+		
+		output = slim.fully_connected( #Tensor("fully_connected/Sigmoid:0", shape=(1, 4), dtype=float32)
+			self.state_in_OH, 
+			a_size,
 			biases_initializer = None, activation_fn = tf.nn.sigmoid, 
-			weights_initializer = tf.ones_initializer())
-		self.output = tf.reshape(output, [-1])
+			weights_initializer = tf.ones_initializer()
+			)
+		self.output = tf.reshape(output, [-1]) #Tensor("Reshape:0", shape=(4,), dtype=float32)
+		print(self.output)
 		self.chosen_action = tf.argmax(self.output, 0)
 		
 		#The next six lines establish the training procedure.
@@ -71,6 +76,8 @@ with tf.Session() as session:
 		if np.random.rand(1) < e:
 			action = np.random.randint(contextual_bandit.num_arms)
 		else:
+			#print("Input, output: ", session.run(agent.output, feed_dict = {
+			#	agent.state_in: [state]}))
 			action = session.run(agent.chosen_action, feed_dict = {
 				agent.state_in: [state]})
 

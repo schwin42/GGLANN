@@ -110,5 +110,7 @@ with tf.Session() as sess:
         
             #Update our running tally of scores.
         if i % 100 == 0:
+            print("Episode" + str(i))
             print(np.mean(total_reward[-100:]))
         i += 1
+

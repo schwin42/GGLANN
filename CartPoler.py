@@ -21,9 +21,8 @@ def discount_rewards(reward):
 	running_add = 0
 	for t in reversed(xrange(0, reward.size)):
 		running_add = running_add * gamma + reward[t]
-		discounted_reward = running_add
-	
-	#print("discounted r: " + str(discounted_reward))
+		discounted_reward[t] = running_add
+	#print("discounted reward", discounted_reward)
 	return discounted_reward
 
 class Agent():
@@ -42,7 +41,8 @@ class Agent():
 			activation_fn = tf.nn.softmax,
 			biases_initializer = None
 			)
-		self.chosen_action = tf.argmax(self.output, 1)
+		print("output", self.output)
+		self.chosen_action = tf.argmax(self.output, 1) #Initial action to choose
 		
 		#The next six lines establish the training procedure.
 		#We feed the reward and chosen action into the network
@@ -51,6 +51,7 @@ class Agent():
 		self.action_holder = tf.placeholder(shape = [None], dtype = tf.int32)
 		self.indexes = tf.range(0, #What is going on here?
 			tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder
+		print("indexes: ", self.indexes)
 		self.responsible_outputs = tf.gather(tf.reshape(self.output, [-1]), self.indexes)
 		self.loss = -tf.reduce_mean(tf.log(self.responsible_outputs) * self.reward_holder)
 		
@@ -71,12 +72,14 @@ tf.reset_default_graph()
 agent = Agent(1e-2, 4, 2, 8) #Load the agent
 
 total_episodes = 5000 #Set total number of episodes to train agent on.
-max_ep = 999 #What the shit is this?
+max_ep = 999 #Max length of episode
 update_frequency = 5 #And this? Really? No comments??
 
 init = tf.global_variables_initializer()
 
 with tf.Session() as session:
+	writer = tf.summary.FileWriter("tf_logs", session.graph)
+	
 	session.run(init)
 	
 	total_reward = []
@@ -102,12 +105,21 @@ with tf.Session() as session:
 			ep_history.append([s, a, r, s1])
 			s = s1
 			running_reward += r
-			if d == True: #d is done
+			if d == True: #If episode is completed
 				#Update the network
+				#print("unarrayed", type(ep_history))
 				ep_history = np.array(ep_history)
-				ep_history[:,2] = discount_rewards(ep_history[:,2])
-				feed_dict = { agent.reward_holder: ep_history[:,2],
-							agent.action_holder: ep_history[:,1], agent.state_in: np.vstack(ep_history[:,0])}
+				#print("arrayed", type(ep_history))
+				ep_history[:,2] = discount_rewards(ep_history[:,2]) #Set rewards to discounted rewards
+				#print("unstacked: ", ep_history[:,0])
+				#print("reward", ep_history[:,1])
+				feed_dict = { 
+					agent.reward_holder: ep_history[:,2], #Total sequence of discounted rewards received in last episode
+					agent.action_holder: ep_history[:,1], #Total sequence of actions taken in last episode
+					agent.state_in: np.vstack(ep_history[:,0]) #Get all rows, state column
+					}
+				#print("stacked: ", np.vstack(ep_history[:,0]))
+
 				grads = session.run(agent.gradient_holders, feed_dict = feed_dict)
 				for idx, grad in enumerate(grads):
 					grad_buffer[idx] += grad
@@ -115,6 +127,9 @@ with tf.Session() as session:
 				if i % update_frequency == 0 and i != 0:
 					feed_dict = dictionary = dict(zip(agent.gradient_holders, grad_buffer))
 					_ = session.run(agent.update_batch, feed_dict = feed_dict)
+					#print(agent.indexes.eval())
+
+					#print(_)
 					for ix, grad in enumerate(grad_buffer):
 						grad_buffer[ix] = grad * 0
 						
@@ -129,6 +144,6 @@ with tf.Session() as session:
 	
 
 		
-#thing = discount_rewards(np.array([1., 6., 9., 0.]))
+#print(discount_rewards(np.array([1., 6., 9., 0.])))
 
 #print("copasetic")
