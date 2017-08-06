@@ -15,14 +15,12 @@ environment = gym.make('CartPole-v0')
 gamma = 0.99 #discount rate
 
 def discount_rewards(reward):
-	#print("reward", reward)
 	#Take 1D float array of rewards and compute discounted reward
 	discounted_reward = np.zeros_like(reward)
 	running_add = 0
 	for t in reversed(xrange(0, reward.size)):
 		running_add = running_add * gamma + reward[t]
 		discounted_reward[t] = running_add
-	#print("discounted reward", discounted_reward)
 	return discounted_reward
 
 class Agent():
@@ -41,7 +39,6 @@ class Agent():
 			activation_fn = tf.nn.softmax,
 			biases_initializer = None
 			)
-		#print("output", self.output)
 		self.chosen_action = tf.argmax(self.output, 1) #action to choose
 		
 		#The next six lines establish the training procedure.
@@ -101,7 +98,7 @@ with tf.Session() as session:
 			a = np.random.choice(a_dist[0], p = a_dist[0]) #Choose action with probability proportional to output weight
 			a = np.argmax(a_dist == a) #chosen action
 			
-			#environment.render()
+			environment.render()
 			s1, r, d, _ = environment.step(a) #Get our reward for taking an action given a bandit
 			ep_history.append([s, a, r, s1])
 			s = s1
@@ -119,7 +116,6 @@ with tf.Session() as session:
 				grads = session.run(agent.gradients, feed_dict = feed_dict) #Gradients for both layers, one for each weight
 				#grad buffer aggregates gradients for multiple episodes
 				for index, grad in enumerate(grads): #Index is FC layer number
-					#print("assigning grad buffer index at ", index)
 					grad_buffer[index] += grad
 					
 				if i % update_frequency == 0 and i != 0:
