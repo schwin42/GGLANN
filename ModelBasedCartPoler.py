@@ -21,101 +21,96 @@ from tensorflow.python.ops import variable_scope
 import gym
 env = gym.make('CartPole-v0')
 
-#Hyperparameters
-NODES_PER_HIDDEN_LAYER = 8 #Number of hidden layer neurons
-LEARNING_RATE = 1e-2
-GAMMA = 0.99 #Reward discount rate
-DECAY_RATE = 0.99 #decay factor for RMSProp leaky sum of grad^2
-RESUME = False #Resume from previous checkpoint?
+# hyperparameters
+H = 8 # number of hidden layer neurons
+learning_rate = 1e-2
+gamma = 0.99 # discount factor for reward
+decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
+resume = False # resume from previous checkpoint?
 
-MODEL_BATCH_SIZE = 3 #Batch size when learning from model
-REAL_BATCH_SIZE = 3 #Batch size when learning from real environment
+model_bs = 3 # Batch size when learning from model
+real_bs = 3 # Batch size when learning from real environment
 
-#Model initialization
-INPUT_NODES = 4 #input dimensionality
+# model initialization
+D = 4 # input dimensionality
 
 #Policy network
 tf.reset_default_graph()
-#Placeholders are fed through the feeddict
-observations = tf.placeholder(tf.float32, [None, 4], name = "input_x")
-
-#Initialize weight variables
-#Variables are implicitly trainable
-#Xavier initialization sets the initial value of the weights to be inversely proportional to the input layer, to prevent it from being too small or too large
-big_w_1 = tf.get_variable("W1", shape = [4, NODES_PER_HIDDEN_LAYER], 
-                     initializer = tf.contrib.layers.xavier_initializer()) 
-layer1 = tf.nn.relu(tf.matmul(observations, big_w_1)) #Activation of hidden layer
-big_w_2 = tf.get_variable("W2", shape = [NODES_PER_HIDDEN_LAYER, 1],
-                          initializer = tf.contrib.layers.xavier_initializer())
-score = tf.matmul(layer1, big_w_2) #Output activity
-probability = tf.nn.sigmoid(score) #Activated output
+observations = tf.placeholder(tf.float32, [None,4] , name="input_x")
+W1 = tf.get_variable("W1", shape=[4, H],
+           initializer=tf.contrib.layers.xavier_initializer())
+layer1 = tf.nn.relu(tf.matmul(observations,W1))
+W2 = tf.get_variable("W2", shape=[H, 1],
+           initializer=tf.contrib.layers.xavier_initializer())
+score = tf.matmul(layer1,W2)
+probability = tf.nn.sigmoid(score)
 
 tvars = tf.trainable_variables()
-input_y = tf.placeholder(tf.float32, [None, 1], name = "input_y") #Action taken from previous state?
-advantages = tf.placeholder(tf.float32, name = "reward_signal") #Advantage is defined as how much better an action is than some baseline. Not sure what it means here
-adam = tf.train.AdamOptimizer(learning_rate = LEARNING_RATE) #Adam optimizer for gradient descent
-big_w_1_gradients = tf.placeholder(tf.float32, name = "batch_grad1")
-big_w_2_gradients = tf.placeholder(tf.float32, name = "batch_grad2")
-batch_gradients = [big_w_1, big_w_2]
-loglik = tf.log(input_y * (input_y - probability) + (1 - input_y) * (input_y + probability)) #Looks similar to cost function for binary logistic regression
-loss = -tf.reduce_mean(loglik * advantages) #Not sure what's happening here
-new_grads = tf.gradients(loss, tvars)
-update_grads = adam.apply_gradients(zip(batch_gradients, tvars))
+input_y = tf.placeholder(tf.float32,[None,1], name="input_y")
+advantages = tf.placeholder(tf.float32,name="reward_signal")
+adam = tf.train.AdamOptimizer(learning_rate=learning_rate)
+W1Grad = tf.placeholder(tf.float32,name="batch_grad1")
+W2Grad = tf.placeholder(tf.float32,name="batch_grad2")
+batchGrad = [W1Grad,W2Grad]
+loglik = tf.log(input_y*(input_y - probability) + (1 - input_y)*(input_y + probability))
+loss = -tf.reduce_mean(loglik * advantages) 
+newGrads = tf.gradients(loss,tvars)
+updateGrads = adam.apply_gradients(zip(batchGrad,tvars))
 
 #Model network
-HIDDEN_SIZE_MODEL = 256 #Model layer size
-
+mH = 256 #Model layer size
+ 
 input_data = tf.placeholder(tf.float32, [None, 5])
 with tf.variable_scope('rnnlm'):
-    softmax_w = tf.get_variable("softmax_w", [HIDDEN_SIZE_MODEL, 50])
+    softmax_w = tf.get_variable("softmax_w", [mH, 50])
     softmax_b = tf.get_variable("softmax_b", [50])
-    
+     
 previous_state = tf.placeholder(tf.float32, [None, 5], name = "previous_state") #Input?
-big_w_1_model = tf.get_variable("W1M", shape = [5, HIDDEN_SIZE_MODEL], #4 state variables + 1 action
-                                initializer = tf.contrib.layers.xavier_initializer())
-big_b_1_model = tf.Variable(tf.zeros([HIDDEN_SIZE_MODEL]), name = "B1M")
-layer_1_model = tf.nn.relu(tf.matmul(previous_state, big_w_1_model) + big_b_1_model)
-big_w_2_model = tf.get_variable("W2M", shape = [HIDDEN_SIZE_MODEL, HIDDEN_SIZE_MODEL],
-                                initializer = tf.contrib.layers.xavier_initializer())
-big_b_2_model = tf.Variable(tf.zeros([HIDDEN_SIZE_MODEL]), name = "B2M")
-layer_2_model = tf.nn.relu(tf.matmul(layer_1_model, big_w_2_model) + big_b_2_model)
-
+W1M = tf.get_variable("W1M", shape = [5, mH], #4 state variables + 1 action
+                                 initializer = tf.contrib.layers.xavier_initializer())
+B1M = tf.Variable(tf.zeros([mH]), name = "B1M")
+layer1M = tf.nn.relu(tf.matmul(previous_state, W1M) + B1M)
+W2M = tf.get_variable("W2M", shape = [mH, mH],
+                                 initializer = tf.contrib.layers.xavier_initializer())
+B2M = tf.Variable(tf.zeros([mH]), name = "B2M")
+layer2M = tf.nn.relu(tf.matmul(layer1M, W2M) + B2M)
+ 
 #Output weights
-wO = tf.get_variable("wO", shape=[HIDDEN_SIZE_MODEL, 4],
-           initializer=tf.contrib.layers.xavier_initializer())
-wR = tf.get_variable("wR", shape=[HIDDEN_SIZE_MODEL, 1],
-           initializer=tf.contrib.layers.xavier_initializer())
-wD = tf.get_variable("wD", shape=[HIDDEN_SIZE_MODEL],
-           initializer=tf.contrib.layers.xavier_initializer())
-
+wO = tf.get_variable("wO", shape=[mH, 4],
+            initializer=tf.contrib.layers.xavier_initializer())
+wR = tf.get_variable("wR", shape=[mH, 1],
+            initializer=tf.contrib.layers.xavier_initializer())
+wD = tf.get_variable("wD", shape=[mH, 1],
+            initializer=tf.contrib.layers.xavier_initializer())
+ 
 #Output biases
 bO = tf.Variable(tf.zeros([4]),name="bO")
 bR = tf.Variable(tf.zeros([1]),name="bR")
 bD = tf.Variable(tf.ones([1]),name="bD")
-
+ 
 #Predicted state
-predicted_observation = tf.matmul(layer_2_model,wO,name="predicted_observation") + bO
-predicted_reward = tf.matmul(layer_2_model,wR,name="predicted_reward") + bR
-predicted_done = tf.sigmoid(tf.matmul(layer_2_model,wD,name="predicted_done") + bD)
-
+predicted_observation = tf.matmul(layer2M,wO,name="predicted_observation") + bO
+predicted_reward = tf.matmul(layer2M,wR,name="predicted_reward") + bR
+predicted_done = tf.sigmoid(tf.matmul(layer2M,wD,name="predicted_done") + bD)
+ 
 #Actual state
 true_observation = tf.placeholder(tf.float32,[None,4],name="true_observation")
 true_reward = tf.placeholder(tf.float32,[None,1],name="true_reward")
 true_done = tf.placeholder(tf.float32,[None,1],name="true_done")
-
+ 
 predicted_state = tf.concat([predicted_observation,predicted_reward,predicted_done], 1)
-
+ 
 observation_loss = tf.square(true_observation - predicted_observation)
-
+ 
 reward_loss = tf.square(true_reward - predicted_reward)
-
+ 
 done_loss = tf.multiply(predicted_done, true_done) + tf.multiply(1-predicted_done, 1-true_done)
 done_loss = -tf.log(done_loss) #Again, this looks like binary logistic regression
-
+ 
 model_loss = tf.reduce_mean(observation_loss + done_loss + reward_loss)
-
-model_adam = tf.train.AdamOptimizer(learning_rate = LEARNING_RATE)
-update_model = model_adam.minimize(model_loss)
+ 
+modelAdam = tf.train.AdamOptimizer(learning_rate = learning_rate)
+updateModel = modelAdam.minimize(model_loss)
 
 
 def reset_grad_buffer(gradient_buffer):
@@ -123,14 +118,14 @@ def reset_grad_buffer(gradient_buffer):
         gradient_buffer[i] = gradient * 0
     return gradient_buffer
 
-def discount_rewards(reward):
-    """ take 1d float array of rewards and computer discounted reward """
-    discounted_reward = np.zeros_like(reward)
+def discount_rewards(r):
+    """ take 1D float array of rewards and compute discounted reward """
+    discounted_r = np.zeros_like(r)
     running_add = 0
-    for t in reversed(range(0, reward.size)):
-        running_add = running_add * GAMMA + reward[t]
-        discounted_reward[t] = running_add
-    return discounted_reward
+    for t in reversed(range(0, r.size)):
+        running_add = running_add * gamma + r[t]
+        discounted_r[t] = running_add
+    return discounted_r
 
 #This function uses our model to produce a new state when given a previous state and action
 def step_model(session, xs, action): #xs are previous state
@@ -154,13 +149,13 @@ running_reward = None
 reward_sum = 0
 episode_number = 1
 real_episodes = 1
-init = tf.initialize_all_variables()
-batch_size = REAL_BATCH_SIZE
+init = tf.global_variables_initializer()
+batch_size = real_bs
 
 draw_from_model = False #When set to True, will use model for observations
 train_the_model = True #Whether to train the model
 train_the_policy = False #Whether to train the policy
-switch_point = 1 #FUUUUU 
+switch_point = 1 #FUUUUU #The point at which it switches between model and actual?
 
 #Launch the graph
 with tf.Session() as session:
@@ -171,7 +166,7 @@ with tf.Session() as session:
     gradient_buffer = session.run(tvars)
     grad_buffer = reset_grad_buffer(gradient_buffer)
     
-    for i in range(5000):
+    while episode_number <= 5000:
         #Start displaying the environment once performance is acceptably high
         if(reward_sum / batch_size > 150 and draw_from_model == False) or rendering == True:
             env.render()
@@ -224,19 +219,18 @@ with tf.Session() as session:
                 #s, a, r, s1
                 #prompt state, taken action, received reward, subsequent state
                 
-                feed_dict = {previous_state: state_prevs, true_observation: state_nexts,
-                             true_done: dones, true_reward: rewards }
-                loss, p_state = session.run([model_loss, predicted_state, update_model], 
-                                            feed_dict)
+                feed_dict = {previous_state: state_prevs, true_observation: state_nexts, true_done: dones, true_reward: rewards }
+                loss, p_state, _ = session.run([model_loss, predicted_state, updateModel], feed_dict)
                 
             if train_the_policy == True:
                 discounted_epr = discount_rewards(epr).astype('float32')
                 discounted_epr -= np.mean(discounted_epr)
                 discounted_epr /= np.std(discounted_epr) #Advantage appears to be normalized differentiation from average reward
-                t_grad = session.run(new_grads, feed_dict = {observations: epx, input_y: epy, advantages: discounted_epr})
+                t_grad = session.run(newGrads, feed_dict = {observations: epx, input_y: epy, advantages: discounted_epr})
                 
                 #If gradients become too large, end training process
                 if np.sum(t_grad[0] == t_grad[0]) == 0:
+                    print("gradients too large", np.sum(t_grad[0] == t_grad[0]))
                     break
                 for i, gradient in enumerate(t_grad):
                     grad_buffer[i] += gradient
@@ -244,14 +238,14 @@ with tf.Session() as session:
             if switch_point + batch_size == episode_number:
                 switch_point = episode_number
                 if train_the_policy == True:
-                    session.run(update_grads, feed_dict = {big_w_1_gradients: grad_buffer[0], big_w_2_gradients: grad_buffer[1]})
+                    session.run(updateGrads, feed_dict = {W1Grad: grad_buffer[0], W2Grad: grad_buffer[1]})
                     grad_buffer = reset_grad_buffer(gradient_buffer)
                     
                 running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01 #Gradually increment total reward
-                
                 if draw_from_model == False:
-                    print("World performance: Episode %f. Reward %f. Action: %f. Mean reward %f." % (real_episodes, reward_sum / REAL_BATCH_SIZE, action, running_reward / REAL_BATCH_SIZE))
+                    print("World performance: Episode %f. Reward %f. Action: %f. Mean reward %f." % (real_episodes, reward_sum / real_bs, action, running_reward / real_bs))
                     if reward_sum / batch_size  > 200:
+                        print("break: reward_sum / batch_size" + str(reward_sum) + ", " + str(batch_size))
                         break
                 reward_sum = 0
                 
@@ -264,12 +258,10 @@ with tf.Session() as session:
                     
             if draw_from_model == True:
                 observation = np.random.uniform(-0.1, 0.1, [4]) #Generate reasonable starting point
-                batch_size = MODEL_BATCH_SIZE
+                batch_size = model_bs
             else:
                 observation = env.reset()
-                batch_size = REAL_BATCH_SIZE
+                batch_size = model_bs
+                
                 
 print(real_episodes)
-
-
-print("copasetic")

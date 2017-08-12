@@ -158,7 +158,8 @@ with tf.Session() as sess:
     gradBuffer = sess.run(tvars)
     gradBuffer = resetGradBuffer(gradBuffer)
     
-    while episode_number <= 5000:
+    while episode_number <= 1000:
+        
         # Start displaying environment once performance is acceptably high.
         if (reward_sum/batch_size > 150 and drawFromModel == False) or rendering == True : 
             env.render()
@@ -231,6 +232,7 @@ with tf.Session() as sess:
                 if drawFromModel == False:
                     print ('World Perf: Episode {}. Reward {}. action: {}. mean reward {}.'.format(real_episodes, reward_sum/real_bs, action, running_reward/real_bs))
                     if reward_sum/batch_size > 200:
+                        print("break: reward_sum / batch_size", reward_sum, batch_size)
                         break
                 reward_sum = 0
 
@@ -248,4 +250,13 @@ with tf.Session() as sess:
                 observation = env.reset()
                 batch_size = real_bs
                 
+
+plt.figure(figsize=(8, 12))
+for i in range(6):
+    plt.subplot(6, 2, 2*i + 1)
+    plt.plot(pState[:,i])
+    plt.subplot(6,2,2*i+1)
+    plt.plot(state_nextsAll[:,i])
+plt.tight_layout()
+
 print (real_episodes)
